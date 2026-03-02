@@ -97,7 +97,7 @@ export class HookService {
                         const schema = JSON.parse(content) as KiroHookSchema;
 
                         hooks.push({
-                            name: item.name,
+                            name: schema.name ?? item.name.replace(/\.json$/, ''),
                             path: item.path,
                             category: categoryId,
                             version: schema.version ?? '1.0.0',

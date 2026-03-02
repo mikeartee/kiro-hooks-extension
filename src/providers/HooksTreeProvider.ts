@@ -109,7 +109,14 @@ export class HooksTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         const nodes: TreeNode[] = [];
 
         for (const hook of categoryHooks) {
-            const installed = this.installedHooks.find(i => i.path === hook.path);
+            // Remote path is e.g. "documentation/changelog-reminder.json"
+            // Installed path is e.g. "changelog-reminder.kiro.hook"
+            // Match by stripping directory and extension from both sides
+            const remoteBaseName = hook.path.split('/').pop()?.replace(/\.json$/, '') ?? '';
+            const installed = this.installedHooks.find(i => {
+                const installedBaseName = i.path.split('/').pop()?.replace(/\.kiro\.hook$/, '').replace(/\.json$/, '') ?? '';
+                return installedBaseName === remoteBaseName;
+            });
             const hasUpdate = installed?.sha ? installed.sha !== hook.sha : false;
 
             nodes.push({ type: 'hook', metadata: hook, installed, hasUpdate });
