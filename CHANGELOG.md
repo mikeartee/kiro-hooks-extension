@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.1] - 2026-03-02
+
+### Fixed
+
+- Update detection bug: SHA matching now correctly compares base filenames across remote path format (`category/name.json`) and local format (`name.kiro.hook`)
+
+### Added
+
+- README.md with full usage documentation
+- Marketplace metadata: icon field and improved categories
+
 ## [0.2.0] - 2026-03-02
 
 ### Changed

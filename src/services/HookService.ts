@@ -370,7 +370,14 @@ export class HookService {
             if (!installed.sha) {
                 continue;
             }
-            const remote = remoteHooks.find(h => h.path === installed.path);
+            // installed.path is e.g. "lint-on-save.kiro.hook"
+            // remote.path is e.g. "code-quality/lint-on-save.json"
+            // Match by base name without extension
+            const installedBase = installed.path.split('/').pop()?.replace(/\.kiro\.hook$/, '').replace(/\.json$/, '') ?? '';
+            const remote = remoteHooks.find(h => {
+                const remoteBase = h.path.split('/').pop()?.replace(/\.json$/, '') ?? '';
+                return remoteBase === installedBase;
+            });
             if (remote && remote.sha !== installed.sha) {
                 updates.push({
                     hook: remote,
