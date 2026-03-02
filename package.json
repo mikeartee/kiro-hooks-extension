@@ -4,7 +4,6 @@
   "description": "Browse, preview, and install community Kiro agent hooks from GitHub",
   "version": "0.1.0",
   "publisher": "mikeartee",
-  "icon": "icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -28,9 +27,6 @@
   },
   "categories": [
     "Other"
-  ],
-  "extensionDependencies": [
-    "kirolabs.kiro"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -91,6 +87,11 @@
         "command": "kiroHooks.checkTokenStatus",
         "title": "Check Token Status",
         "category": "Kiro Hooks"
+      },
+      {
+        "command": "kiroHooks.toggle",
+        "title": "Toggle Hook",
+        "icon": "$(circle-filled)"
       }
     ],
     "menus": {

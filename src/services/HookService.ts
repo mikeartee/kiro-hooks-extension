@@ -179,7 +179,7 @@ export class HookService {
             for (const [name, type] of entries) {
                 const itemUri = vscode.Uri.joinPath(dirUri, name);
 
-                if (type === vscode.FileType.File && name.endsWith('.json')) {
+                if (type === vscode.FileType.File && (name.endsWith('.json') || name.endsWith('.kiro.hook'))) {
                     try {
                         const content = await vscode.workspace.fs.readFile(itemUri);
                         const schema = JSON.parse(Buffer.from(content).toString('utf-8')) as KiroHookSchema & { _sha?: string };
@@ -229,7 +229,11 @@ export class HookService {
         }
 
         const hooksDirUri = vscode.Uri.joinPath(workspaceFolder.uri, this.hooksDir);
-        const fileUri = vscode.Uri.joinPath(hooksDirUri, hook.path);
+
+        // Install flat into .kiro/hooks/ using .kiro.hook extension (Kiro's required format)
+        const baseName = hook.path.split('/').pop()?.replace(/\.json$/, '') ?? hook.name;
+        const fileName = `${baseName}.kiro.hook`;
+        const fileUri = vscode.Uri.joinPath(hooksDirUri, fileName);
 
         try {
             // Check if already exists
@@ -247,14 +251,8 @@ export class HookService {
                 // File doesn't exist — proceed
             }
 
-            // Ensure parent directory exists (handles subdirectory paths like git/hook.json)
-            const pathParts = hook.path.split('/').slice(0, -1);
-            if (pathParts.length > 0) {
-                const parentUri = vscode.Uri.joinPath(hooksDirUri, ...pathParts);
-                await vscode.workspace.fs.createDirectory(parentUri);
-            } else {
-                await vscode.workspace.fs.createDirectory(hooksDirUri);
-            }
+            // Ensure .kiro/hooks/ directory exists
+            await vscode.workspace.fs.createDirectory(hooksDirUri);
 
             // Fetch and embed SHA for update tracking
             const rawContent = await this.fetchHookContent(hook.path);
@@ -327,7 +325,11 @@ export class HookService {
         }
 
         const hooksDirUri = vscode.Uri.joinPath(workspaceFolder.uri, this.hooksDir);
-        const fileUri = vscode.Uri.joinPath(hooksDirUri, hook.path);
+
+        // Match the flat .kiro.hook install path
+        const baseName = hook.path.split('/').pop()?.replace(/\.json$/, '') ?? hook.name;
+        const fileName = `${baseName}.kiro.hook`;
+        const fileUri = vscode.Uri.joinPath(hooksDirUri, fileName);
 
         try {
             const rawContent = await this.fetchHookContent(hook.path);
@@ -335,15 +337,7 @@ export class HookService {
             const withSha = { ...schema, _sha: hook.sha };
             const finalContent = JSON.stringify(withSha, null, 2);
 
-            // Ensure parent directory exists (handles subdirectory paths like git/hook.json)
-            const pathParts = hook.path.split('/').slice(0, -1);
-            if (pathParts.length > 0) {
-                const parentUri = vscode.Uri.joinPath(hooksDirUri, ...pathParts);
-                await vscode.workspace.fs.createDirectory(parentUri);
-            } else {
-                await vscode.workspace.fs.createDirectory(hooksDirUri);
-            }
-
+            await vscode.workspace.fs.createDirectory(hooksDirUri);
             await vscode.workspace.fs.writeFile(fileUri, Buffer.from(finalContent, 'utf-8'));
             vscode.window.showInformationMessage(
                 `Hook "${hook.name}" updated to version ${hook.version}`

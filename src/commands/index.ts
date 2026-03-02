@@ -5,7 +5,7 @@ import * as vscode from 'vscode';
 import { HookService } from '../services/HookService';
 import { HooksTreeProvider } from '../providers/HooksTreeProvider';
 import { TokenManager } from '../services/TokenManager';
-import { HookMetadata, ExtensionError } from '../models/types';
+import { HookMetadata, InstalledHook, ExtensionError } from '../models/types';
 
 /**
  * Register all command handlers for the Kiro Hooks extension
@@ -51,6 +51,10 @@ export function registerCommands(
 
         vscode.commands.registerCommand('kiroHooks.checkTokenStatus', async () => {
             await handleCheckTokenStatus(tokenManager);
+        }),
+
+        vscode.commands.registerCommand('kiroHooks.toggle', async (item: unknown) => {
+            await handleToggle(hookService, treeProvider, item);
         })
     );
 }
@@ -298,6 +302,50 @@ async function handleCheckTokenStatus(tokenManager: TokenManager): Promise<void>
     vscode.window.showInformationMessage(
         `GitHub token configured (type: ${info.tokenType ?? 'unknown'})`
     );
+}
+
+/**
+ * Handle toggle command — install if not installed, uninstall if installed
+ */
+async function handleToggle(
+    hookService: HookService,
+    treeProvider: HooksTreeProvider,
+    item: unknown
+): Promise<void> {
+    try {
+        const node = item as { type?: string; metadata?: HookMetadata; installed?: InstalledHook };
+        const hook = node?.metadata;
+
+        if (!hook) {
+            vscode.window.showErrorMessage('No hook selected');
+            return;
+        }
+
+        const isInstalled = !!node.installed;
+
+        if (isInstalled && node.installed) {
+            await vscode.window.withProgress(
+                { location: vscode.ProgressLocation.Notification, title: `Uninstalling ${hook.name}...`, cancellable: false },
+                async () => hookService.uninstallHook(node.installed!.path)
+            );
+        } else {
+            await vscode.window.withProgress(
+                { location: vscode.ProgressLocation.Notification, title: `Installing ${hook.name}...`, cancellable: false },
+                async () => hookService.installHook(hook)
+            );
+        }
+
+        treeProvider.refresh();
+    } catch (error) {
+        if (error instanceof ExtensionError) {
+            vscode.window.showErrorMessage(error.message);
+        } else {
+            vscode.window.showErrorMessage(
+                `Failed to toggle hook: ${error instanceof Error ? error.message : 'Unknown error'}`
+            );
+        }
+        treeProvider.refresh();
+    }
 }
 
 /**

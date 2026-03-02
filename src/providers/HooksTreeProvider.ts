@@ -152,8 +152,8 @@ export class HooksTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         item.iconPath = this.getIcon(node);
 
         item.command = {
-            command: 'kiroHooks.preview',
-            title: 'Preview Hook',
+            command: 'kiroHooks.toggle',
+            title: 'Toggle Hook',
             arguments: [node]
         };
 
