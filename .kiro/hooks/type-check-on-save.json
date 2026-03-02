@@ -1,0 +1,13 @@
+{
+  "name": "TypeScript Type Check on Save",
+  "version": "1.0.0",
+  "description": "Run tsc --noEmit after editing TypeScript files to catch type errors without producing output",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["**/*.ts", "**/*.tsx"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npx tsc --noEmit"
+  }
+}

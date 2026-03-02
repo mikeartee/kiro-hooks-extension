@@ -1,0 +1,12 @@
+{
+  "name": "TODO Check Before Task Complete",
+  "version": "1.0.0",
+  "description": "Before marking a task complete, scan for TODO, FIXME, and HACK comments left in recently edited files",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Before this task is considered complete, scan the files you edited during this task for any TODO, FIXME, HACK, or XXX comments. If any are found, list them and determine whether they represent unfinished work that should be resolved before closing the task. If they are intentional placeholders for future work, note them but allow the task to complete. Do not leave accidental TODOs behind."
+  }
+}

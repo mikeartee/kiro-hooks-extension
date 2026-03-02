@@ -1,0 +1,13 @@
+{
+  "name": "Dependency Audit",
+  "version": "1.0.0",
+  "description": "When package.json is edited, audit dependencies for known vulnerabilities",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["**/package.json"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm audit --audit-level=high"
+  }
+}

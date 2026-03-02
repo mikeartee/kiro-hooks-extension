@@ -1,0 +1,179 @@
+{
+  "name": "kiro-hooks-browser",
+  "displayName": "Kiro Hooks Browser",
+  "description": "Browse, preview, and install community Kiro agent hooks from GitHub",
+  "version": "0.1.0",
+  "publisher": "mikeartee",
+  "icon": "icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mikeartee/kiro-hooks-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/mikeartee/kiro-hooks-extension/issues"
+  },
+  "homepage": "https://github.com/mikeartee/kiro-hooks-extension#readme",
+  "keywords": [
+    "kiro",
+    "hooks",
+    "ai",
+    "assistant",
+    "automation",
+    "agent",
+    "workflow"
+  ],
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionDependencies": [
+    "kirolabs.kiro"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "kiro": [
+        {
+          "id": "kiroHooksView",
+          "name": "Hooks Browser",
+          "icon": "$(zap)"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "kiroHooks.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "kiroHooks.preview",
+        "title": "Preview Hook",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "kiroHooks.install",
+        "title": "Install Hook",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "kiroHooks.uninstall",
+        "title": "Uninstall Hook",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "kiroHooks.checkUpdates",
+        "title": "Check for Updates",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "kiroHooks.update",
+        "title": "Update Hook",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "kiroHooks.setToken",
+        "title": "Set GitHub Token",
+        "category": "Kiro Hooks"
+      },
+      {
+        "command": "kiroHooks.clearToken",
+        "title": "Clear GitHub Token",
+        "category": "Kiro Hooks"
+      },
+      {
+        "command": "kiroHooks.checkTokenStatus",
+        "title": "Check Token Status",
+        "category": "Kiro Hooks"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "kiroHooks.refresh",
+          "when": "view == kiroHooksView",
+          "group": "navigation"
+        },
+        {
+          "command": "kiroHooks.checkUpdates",
+          "when": "view == kiroHooksView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "kiroHooks.preview",
+          "when": "view == kiroHooksView && viewItem =~ /^hook/",
+          "group": "navigation"
+        },
+        {
+          "command": "kiroHooks.install",
+          "when": "view == kiroHooksView && viewItem == hook-available",
+          "group": "1_actions"
+        },
+        {
+          "command": "kiroHooks.uninstall",
+          "when": "view == kiroHooksView && viewItem == hook-installed",
+          "group": "1_actions"
+        },
+        {
+          "command": "kiroHooks.update",
+          "when": "view == kiroHooksView && viewItem == hook-update-available",
+          "group": "1_actions"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Kiro Hooks",
+      "properties": {
+        "kiroHooks.repository": {
+          "type": "string",
+          "default": "mikeartee/kiro-hooks-docs",
+          "description": "GitHub repository containing hook definitions"
+        },
+        "kiroHooks.branch": {
+          "type": "string",
+          "default": "main",
+          "description": "Branch to fetch hooks from"
+        },
+        "kiroHooks.cacheTimeout": {
+          "type": "number",
+          "default": 3600,
+          "description": "Cache timeout in seconds"
+        },
+        "kiroHooks.autoCheckUpdates": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically check for updates on activation"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "lint": "eslint src --ext ts",
+    "lint:fix": "eslint src --ext ts --fix",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^18.x",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/test-electron": "^2.3.0",
+    "eslint": "^8.40.0",
+    "mocha": "^11.7.4",
+    "typescript": "^5.1.0"
+  },
+  "dependencies": {}
+}

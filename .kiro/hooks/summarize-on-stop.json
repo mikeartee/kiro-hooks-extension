@@ -1,0 +1,12 @@
+{
+  "name": "Summarize on Agent Stop",
+  "version": "1.0.0",
+  "description": "When the agent finishes a session, summarize what was done and update progress tracking",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "The agent session has ended. Write a brief summary of what was accomplished in this session. If a progress.md file exists in the workspace, update it with: the last completed step, what was changed, and the recommended next action. Keep the summary concise — 3 to 5 bullet points maximum."
+  }
+}
