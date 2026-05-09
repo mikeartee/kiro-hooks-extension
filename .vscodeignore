@@ -13,3 +13,8 @@ progress.md
 task_plan.md
 **/*.map
 **/*.vsix
+.scratch/**
+docs/**
+CONTEXT.md
+CLAUDE.md
+icon.svg
