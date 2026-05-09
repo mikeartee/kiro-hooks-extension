@@ -1,6 +1,31 @@
 # Changelog
 
-## [0.2.1] - 2026-03-02
+## [0.3.0]
+
+### Added
+- Path-based hook matching — hooks now install to category-prefixed paths (e.g. `.kiro/hooks/code-quality/lint-on-save.kiro.hook`)
+- Automatic migration of flat-installed hooks to correct category paths on activation
+- Virtual document provider for hook preview — read-only, no double-insert, no save prompt
+- Config change listener — changing `kiroHooks.repository` or `kiroHooks.branch` takes effect immediately without restart
+- `kiroHooks.cacheTimeout` setting now respected (was previously hardcoded to 3600s)
+- Category labels and descriptions now sourced from `categories.json` instead of derived from IDs
+- Tree provider fetch guard — prevents redundant concurrent fetches on rapid expand/collapse
+- `tags` field support in hook schema — tags shown in tree tooltip
+- Unit tests for `GitHubClient` covering retry, error mapping, auth, and response handling
+- New extension icon
+
+### Fixed
+- Hook install/update/update-check/installed-status all now use path-based matching (fixes false positives when two hooks share a filename across categories)
+- `clearCache()` race condition — now properly awaited before refetch
+- `checkForUpdates` no longer makes a GitHub API call when no hooks are installed
+- `fetchHookList` now returns `[]` with a warning when `categories.json` is missing (404) instead of throwing
+
+### Changed
+- `GitHubClient` request methods unified — reduced duplication, same behaviour
+- Auto-update check logic deduplicated between activation and the refresh command
+- Hook schema: `version` field standardised to semver (`1.0.0`), `enabled` and `tags` fields documented
+
+ - 2026-03-02
 
 ### Fixed
 
