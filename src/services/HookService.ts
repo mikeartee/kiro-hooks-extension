@@ -22,6 +22,7 @@ import {
 export class HookService {
     private readonly CACHE_KEY_HOOKS = 'hookList';
     private readonly hooksDir = '.kiro/hooks';
+    private categories: CategoryDefinition[] = [];
 
     constructor(
         private githubClient: GitHubClient,
@@ -44,6 +45,13 @@ export class HookService {
     }
 
     /**
+     * Return the categories loaded during the last fetchHookList() call
+     */
+    getCategories(): CategoryDefinition[] {
+        return this.categories;
+    }
+
+    /**
      * Fetch the list of available hooks from GitHub with caching
      */
     async fetchHookList(): Promise<HookMetadata[]> {
@@ -56,6 +64,7 @@ export class HookService {
             const categoriesContent = await this.githubClient.getRawFileContent('categories.json');
             const categoriesData = JSON.parse(categoriesContent) as { categories: CategoryDefinition[] };
             const categories: CategoryDefinition[] = categoriesData.categories ?? [];
+            this.categories = categories; // store for getCategories()
 
             const hooks: HookMetadata[] = [];
 
