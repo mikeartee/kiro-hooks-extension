@@ -155,3 +155,74 @@ export interface TokenInfo {
     error?: string;
     source?: 'secretStorage' | 'settings' | 'none';
 }
+
+// ============================================================================
+// Recommendation System Types
+// ============================================================================
+
+export enum ProjectType {
+    WEB_APP = 'web-app',
+    LIBRARY = 'library',
+    CLI_TOOL = 'cli-tool',
+    VSCODE_EXTENSION = 'vscode-extension',
+    API_SERVER = 'api-server',
+    UNKNOWN = 'unknown'
+}
+
+export enum DependencyCategory {
+    FRAMEWORK = 'framework',
+    TESTING = 'testing',
+    BUILD = 'build',
+    UTILITY = 'utility'
+}
+
+export interface FrameworkInfo {
+    readonly name: string;
+    readonly version: string;
+    readonly confidence: number;
+}
+
+export interface DependencyInfo {
+    readonly name: string;
+    readonly version: string;
+    readonly isDev: boolean;
+    readonly category: DependencyCategory;
+}
+
+export interface FilePattern {
+    readonly pattern: string;
+    readonly count: number;
+    readonly significance: number;
+}
+
+export interface WorkspaceContext {
+    languages: string[];
+    frameworks: FrameworkInfo[];
+    dependencies: DependencyInfo[];
+    filePatterns: FilePattern[];
+    hasTests: boolean;
+    projectType: ProjectType;
+    installedHooks: string[];
+}
+
+export interface MatchReason {
+    readonly type: 'framework' | 'dependency' | 'file-pattern' | 'language' | 'project-type' | 'event-type';
+    readonly description: string;
+    readonly weight: number;
+    readonly details: string[];
+}
+
+export interface ScoredHook {
+    readonly hook: HookMetadata;
+    readonly score: number;
+    readonly reasons: MatchReason[];
+    readonly isInstalled: boolean;
+}
+
+export const SCORING_WEIGHTS = {
+    FRAMEWORK_MATCH: 30,
+    DEPENDENCY_MATCH: 20,
+    FILE_PATTERN_MATCH: 15,
+    LANGUAGE_MATCH: 10,
+    EVENT_TYPE_MATCH: 10
+} as const;
