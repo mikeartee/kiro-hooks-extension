@@ -224,7 +224,8 @@ export class HookService {
     }
 
     /**
-     * Install a hook to the local .kiro/hooks/ directory
+     * Install a hook to the local .kiro/hooks/ directory, preserving the category subdirectory.
+     * e.g. hook.path "code-quality/lint-on-save.json" → .kiro/hooks/code-quality/lint-on-save.kiro.hook
      */
     async installHook(hook: HookMetadata): Promise<void> {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -238,10 +239,13 @@ export class HookService {
 
         const hooksDirUri = vscode.Uri.joinPath(workspaceFolder.uri, this.hooksDir);
 
-        // Install flat into .kiro/hooks/ using .kiro.hook extension (Kiro's required format)
-        const baseName = hook.path.split('/').pop()?.replace(/\.json$/, '') ?? hook.name;
-        const fileName = `${baseName}.kiro.hook`;
-        const fileUri = vscode.Uri.joinPath(hooksDirUri, fileName);
+        // hook.path is e.g. "code-quality/lint-on-save.json"
+        // target: .kiro/hooks/code-quality/lint-on-save.kiro.hook
+        const hookRelativePath = hook.path.replace(/\.json$/, '.kiro.hook');
+        const fileUri = vscode.Uri.joinPath(hooksDirUri, ...hookRelativePath.split('/'));
+        // Ensure the category subdirectory exists
+        const categoryDirUri = vscode.Uri.joinPath(hooksDirUri, ...hookRelativePath.split('/').slice(0, -1));
+        await vscode.workspace.fs.createDirectory(categoryDirUri);
 
         try {
             // Check if already exists
@@ -320,7 +324,8 @@ export class HookService {
     }
 
     /**
-     * Update an installed hook to the latest version
+     * Update an installed hook to the latest version, preserving the category subdirectory.
+     * e.g. hook.path "code-quality/lint-on-save.json" → .kiro/hooks/code-quality/lint-on-save.kiro.hook
      */
     async updateHook(hook: HookMetadata): Promise<void> {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -334,10 +339,12 @@ export class HookService {
 
         const hooksDirUri = vscode.Uri.joinPath(workspaceFolder.uri, this.hooksDir);
 
-        // Match the flat .kiro.hook install path
-        const baseName = hook.path.split('/').pop()?.replace(/\.json$/, '') ?? hook.name;
-        const fileName = `${baseName}.kiro.hook`;
-        const fileUri = vscode.Uri.joinPath(hooksDirUri, fileName);
+        // hook.path is e.g. "code-quality/lint-on-save.json"
+        // target: .kiro/hooks/code-quality/lint-on-save.kiro.hook
+        const hookRelativePath = hook.path.replace(/\.json$/, '.kiro.hook');
+        const fileUri = vscode.Uri.joinPath(hooksDirUri, ...hookRelativePath.split('/'));
+        const categoryDirUri = vscode.Uri.joinPath(hooksDirUri, ...hookRelativePath.split('/').slice(0, -1));
+        await vscode.workspace.fs.createDirectory(categoryDirUri);
 
         try {
             const rawContent = await this.fetchHookContent(hook.path);
@@ -363,7 +370,8 @@ export class HookService {
     }
 
     /**
-     * Check for updates to installed hooks
+     * Check for updates to installed hooks.
+     * Matches by path: installed "code-quality/lint-on-save.kiro.hook" ↔ remote "code-quality/lint-on-save.json"
      */
     async checkForUpdates(): Promise<HookUpdateInfo[]> {
         const installedHooks = await this.getInstalledHooks();
@@ -378,14 +386,11 @@ export class HookService {
             if (!installed.sha) {
                 continue;
             }
-            // installed.path is e.g. "lint-on-save.kiro.hook"
+            // installed.path is e.g. "code-quality/lint-on-save.kiro.hook"
             // remote.path is e.g. "code-quality/lint-on-save.json"
-            // Match by base name without extension
-            const installedBase = installed.path.split('/').pop()?.replace(/\.kiro\.hook$/, '').replace(/\.json$/, '') ?? '';
-            const remote = remoteHooks.find(h => {
-                const remoteBase = h.path.split('/').pop()?.replace(/\.json$/, '') ?? '';
-                return remoteBase === installedBase;
-            });
+            // Match by converting installed path back to remote path format
+            const installedAsRemotePath = installed.path.replace(/\.kiro\.hook$/, '.json');
+            const remote = remoteHooks.find(h => h.path === installedAsRemotePath);
             if (remote && remote.sha !== installed.sha) {
                 updates.push({
                     hook: remote,
@@ -396,5 +401,61 @@ export class HookService {
         }
 
         return updates;
+    }
+
+    /**
+     * Migrate flat-installed hooks (legacy) to path-based layout.
+     * Detects .kiro.hook files directly in .kiro/hooks/ and moves them to their
+     * correct category subdirectory based on the remote hook list.
+     * This is a one-time, silent migration.
+     */
+    async migrateInstalledHooks(): Promise<void> {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) { return; }
+
+        const hooksDirUri = vscode.Uri.joinPath(workspaceFolder.uri, this.hooksDir);
+
+        try {
+            const entries = await vscode.workspace.fs.readDirectory(hooksDirUri);
+            const flatHooks = entries.filter(([name, type]) =>
+                type === vscode.FileType.File && name.endsWith('.kiro.hook')
+            );
+
+            if (flatHooks.length === 0) { return; }
+
+            // Fetch remote hooks to find correct paths
+            const remoteHooks = await this.fetchHookList();
+
+            for (const [name] of flatHooks) {
+                const baseName = name.replace(/\.kiro\.hook$/, '');
+                const remote = remoteHooks.find(h => {
+                    const remoteBase = h.path.split('/').pop()?.replace(/\.json$/, '') ?? '';
+                    return remoteBase === baseName;
+                });
+
+                if (!remote) { continue; }
+
+                const sourceUri = vscode.Uri.joinPath(hooksDirUri, name);
+                const targetRelPath = remote.path.replace(/\.json$/, '.kiro.hook');
+                const targetUri = vscode.Uri.joinPath(hooksDirUri, ...targetRelPath.split('/'));
+
+                // Only migrate if target path differs from source
+                if (sourceUri.fsPath === targetUri.fsPath) { continue; }
+
+                try {
+                    const targetDirUri = vscode.Uri.joinPath(hooksDirUri, ...targetRelPath.split('/').slice(0, -1));
+                    await vscode.workspace.fs.createDirectory(targetDirUri);
+                    await vscode.workspace.fs.rename(sourceUri, targetUri, { overwrite: false });
+                    console.log(`Migrated ${name} → ${targetRelPath}`);
+                } catch (err) {
+                    console.error(`Failed to migrate ${name}:`, err);
+                }
+            }
+        } catch (error) {
+            if (error instanceof vscode.FileSystemError && error.code === 'FileNotFound') {
+                return; // No hooks dir yet
+            }
+            console.error('Migration failed:', error);
+        }
     }
 }

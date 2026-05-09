@@ -24,6 +24,11 @@ export function activate(context: vscode.ExtensionContext): void {
     const hookService = new HookService(githubClient, cacheManager, cacheTimeout);
     const treeProvider = new HooksTreeProvider(hookService);
 
+    // Migrate flat-installed hooks to path-based layout (one-time, silent)
+    void hookService.migrateInstalledHooks().catch((err: unknown) => {
+        console.error('Hook migration failed:', err);
+    });
+
     const hookContentProvider = new HookContentProvider(hookService);
     context.subscriptions.push(
         vscode.workspace.registerTextDocumentContentProvider(HOOK_SCHEME, hookContentProvider)
