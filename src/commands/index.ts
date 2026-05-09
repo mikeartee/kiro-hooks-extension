@@ -5,8 +5,10 @@ import * as vscode from 'vscode';
 import { HookService } from '../services/HookService';
 import { HooksTreeProvider } from '../providers/HooksTreeProvider';
 import { TokenManager } from '../services/TokenManager';
+import { RecommendationService } from '../services/RecommendationService';
 import { HookMetadata, InstalledHook, ExtensionError } from '../models/types';
 import { HOOK_SCHEME } from '../providers/HookContentProvider';
+import { recommendHooks } from './recommendHooks';
 
 /**
  * Register all command handlers for the Kiro Hooks extension
@@ -15,11 +17,13 @@ export function registerCommands(
     context: vscode.ExtensionContext,
     hookService: HookService,
     treeProvider: HooksTreeProvider,
-    tokenManager: TokenManager
+    tokenManager: TokenManager,
+    recommendationService?: RecommendationService,
+    workspaceAnalysisCache?: import('../services/WorkspaceAnalysisCache').WorkspaceAnalysisCache
 ): void {
     context.subscriptions.push(
         vscode.commands.registerCommand('kiroHooks.refresh', async () => {
-            await handleRefresh(hookService, treeProvider);
+            await handleRefresh(hookService, treeProvider, workspaceAnalysisCache);
         }),
 
         vscode.commands.registerCommand('kiroHooks.preview', async (item: unknown) => {
@@ -58,17 +62,27 @@ export function registerCommands(
             await handleToggle(hookService, treeProvider, item);
         })
     );
+
+    if (recommendationService) {
+        context.subscriptions.push(
+            vscode.commands.registerCommand('kiroHooks.recommend', async () => {
+                await recommendHooks(recommendationService!, hookService, treeProvider);
+            })
+        );
+    }
 }
 
 async function handleRefresh(
     hookService: HookService,
-    treeProvider: HooksTreeProvider
+    treeProvider: HooksTreeProvider,
+    workspaceAnalysisCache?: import('../services/WorkspaceAnalysisCache').WorkspaceAnalysisCache
 ): Promise<void> {
     await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'Refreshing hooks...', cancellable: false },
         async () => {
             try {
                 await hookService.clearCache();
+                workspaceAnalysisCache?.invalidate();
                 await hookService.fetchHookList();
                 treeProvider.refresh();
                 vscode.window.showInformationMessage('Hooks refreshed successfully');

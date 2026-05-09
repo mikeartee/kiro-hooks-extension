@@ -6,6 +6,10 @@ import { GitHubClient } from './services/GitHubClient';
 import { CacheManager } from './services/CacheManager';
 import { HookService } from './services/HookService';
 import { TokenManager } from './services/TokenManager';
+import { WorkspaceAnalyzer } from './services/WorkspaceAnalyzer';
+import { WorkspaceAnalysisCache } from './services/WorkspaceAnalysisCache';
+import { HookMatcher } from './services/HookMatcher';
+import { RecommendationService } from './services/RecommendationService';
 import { HooksTreeProvider } from './providers/HooksTreeProvider';
 import { HookContentProvider, HOOK_SCHEME } from './providers/HookContentProvider';
 import { registerCommands, performUpdateCheck } from './commands';
@@ -23,6 +27,11 @@ export function activate(context: vscode.ExtensionContext): void {
     const cacheTimeout = config.get<number>('cacheTimeout', 3600);
     const hookService = new HookService(githubClient, cacheManager, cacheTimeout);
     const treeProvider = new HooksTreeProvider(hookService);
+
+    const workspaceAnalyzer = new WorkspaceAnalyzer();
+    const workspaceAnalysisCache = new WorkspaceAnalysisCache(workspaceAnalyzer);
+    const hookMatcher = new HookMatcher();
+    const recommendationService = new RecommendationService(hookService, workspaceAnalysisCache, hookMatcher);
 
     // Migrate flat-installed hooks to path-based layout (one-time, silent)
     void hookService.migrateInstalledHooks().catch((err: unknown) => {
@@ -46,7 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
         tokenManager.onTokenChange(() => treeProvider.refresh())
     );
 
-    registerCommands(context, hookService, treeProvider, tokenManager);
+    registerCommands(context, hookService, treeProvider, tokenManager, recommendationService, workspaceAnalysisCache);
 
     context.subscriptions.push({
         dispose: () => tokenManager.dispose()
@@ -65,6 +74,7 @@ export function activate(context: vscode.ExtensionContext): void {
                 // Await clearCache before refreshing so the tree fetches fresh
                 // data from the new repository rather than serving stale cache.
                 void hookService.clearCache().then(() => {
+                    workspaceAnalysisCache.invalidate();
                     treeProvider.refresh();
                     void vscode.window.showInformationMessage('Settings updated — refreshing hooks...');
                 }).catch((err: unknown) => {
