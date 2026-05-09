@@ -95,6 +95,12 @@
         "command": "kiroHooks.toggle",
         "title": "Toggle Hook",
         "icon": "$(circle-filled)"
+      },
+      {
+        "command": "kiroHooks.recommend",
+        "title": "Get Recommendations",
+        "category": "Kiro Hooks",
+        "icon": "$(sparkle)"
       }
     ],
     "menus": {
@@ -106,6 +112,11 @@
         },
         {
           "command": "kiroHooks.checkUpdates",
+          "when": "view == kiroHooksView",
+          "group": "navigation"
+        },
+        {
+          "command": "kiroHooks.recommend",
           "when": "view == kiroHooksView",
           "group": "navigation"
         }
