@@ -24,9 +24,17 @@ export class HookService {
     private readonly hooksDir = '.kiro/hooks';
 
     constructor(
-        private readonly githubClient: GitHubClient,
-        private readonly cacheManager: CacheManager
+        private githubClient: GitHubClient,
+        private readonly cacheManager: CacheManager,
+        private readonly cacheTimeout: number = 3600
     ) {}
+
+    /**
+     * Replace the GitHub client (e.g. when repository/branch settings change)
+     */
+    setClient(client: GitHubClient): void {
+        this.githubClient = client;
+    }
 
     /**
      * Clear the hook list cache
@@ -60,7 +68,7 @@ export class HookService {
                 }
             }
 
-            await this.cacheManager.set(this.CACHE_KEY_HOOKS, hooks, 3600);
+            await this.cacheManager.set(this.CACHE_KEY_HOOKS, hooks, this.cacheTimeout);
             return hooks;
         } catch (error) {
             const cached = this.cacheManager.get<HookMetadata[]>(this.CACHE_KEY_HOOKS);

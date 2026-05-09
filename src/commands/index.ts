@@ -204,6 +204,17 @@ async function handleCheckUpdates(
     hookService: HookService,
     treeProvider: HooksTreeProvider
 ): Promise<void> {
+    await performUpdateCheck(hookService, treeProvider);
+}
+
+/**
+ * Fetch available updates and present the QuickPick UI to the user.
+ * Exported so extension.ts can call it on activation.
+ */
+export async function performUpdateCheck(
+    hookService: HookService,
+    treeProvider: HooksTreeProvider
+): Promise<void> {
     const updates = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'Checking for updates...', cancellable: false },
         async () => {
