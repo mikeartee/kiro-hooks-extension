@@ -7,7 +7,8 @@ import { CacheManager } from './services/CacheManager';
 import { HookService } from './services/HookService';
 import { TokenManager } from './services/TokenManager';
 import { HooksTreeProvider } from './providers/HooksTreeProvider';
-import { registerCommands } from './commands';
+import { HookContentProvider, HOOK_SCHEME } from './providers/HookContentProvider';
+import { registerCommands, performUpdateCheck } from './commands';
 
 export function activate(context: vscode.ExtensionContext): void {
     console.log('Kiro Hooks Browser is now active');
@@ -19,8 +20,20 @@ export function activate(context: vscode.ExtensionContext): void {
     const tokenManager = new TokenManager(context.secrets, context.subscriptions, context.secrets.onDidChange);
     const githubClient = new GitHubClient(repository, branch, () => tokenManager.getToken());
     const cacheManager = new CacheManager(context.globalState);
-    const hookService = new HookService(githubClient, cacheManager);
+    const cacheTimeout = config.get<number>('cacheTimeout', 3600);
+    const hookService = new HookService(githubClient, cacheManager, cacheTimeout);
     const treeProvider = new HooksTreeProvider(hookService);
+
+    // Migrate flat-installed hooks to path-based layout (one-time, silent)
+    void hookService.migrateInstalledHooks().catch((err: unknown) => {
+        console.error('Hook migration failed:', err);
+    });
+
+    const hookContentProvider = new HookContentProvider(hookService);
+    context.subscriptions.push(
+        vscode.workspace.registerTextDocumentContentProvider(HOOK_SCHEME, hookContentProvider),
+        hookContentProvider
+    );
 
     const treeView = vscode.window.createTreeView('kiroHooksView', {
         treeDataProvider: treeProvider,
@@ -39,47 +52,33 @@ export function activate(context: vscode.ExtensionContext): void {
         dispose: () => tokenManager.dispose()
     });
 
+    // Listen for repository/branch config changes and rewire the client
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('kiroHooks.repository') ||
+                e.affectsConfiguration('kiroHooks.branch')) {
+                const newConfig = vscode.workspace.getConfiguration('kiroHooks');
+                const newRepo = newConfig.get<string>('repository', 'mikeartee/kiro-hooks-docs');
+                const newBranch = newConfig.get<string>('branch', 'main');
+                const newClient = new GitHubClient(newRepo, newBranch, () => tokenManager.getToken());
+                hookService.setClient(newClient);
+                // Await clearCache before refreshing so the tree fetches fresh
+                // data from the new repository rather than serving stale cache.
+                void hookService.clearCache().then(() => {
+                    treeProvider.refresh();
+                    void vscode.window.showInformationMessage('Settings updated — refreshing hooks...');
+                }).catch((err: unknown) => {
+                    console.error('Failed to clear cache after config change:', err);
+                    treeProvider.refresh();
+                });
+            }
+        })
+    );
+
     // Auto-check for updates on activation
     const autoCheckUpdates = config.get<boolean>('autoCheckUpdates', true);
     if (autoCheckUpdates) {
-        hookService.checkForUpdates().then(async (updates) => {
-            if (updates.length === 0) {
-                return;
-            }
-
-            const names = updates.map(u => u.hook.name).join(', ');
-            const message = updates.length === 1
-                ? `Hook update available: ${names}`
-                : `${updates.length} hook updates available: ${names}`;
-
-            const action = await vscode.window.showInformationMessage(message, 'View Updates');
-
-            if (action === 'View Updates') {
-                const items = updates.map(u => ({
-                    label: u.hook.name,
-                    description: `${u.currentVersion} → ${u.newVersion}`,
-                    update: u
-                }));
-
-                const selected = await vscode.window.showQuickPick(items, {
-                    placeHolder: 'Select hooks to update',
-                    canPickMany: true
-                });
-
-                if (selected && selected.length > 0) {
-                    for (const item of selected) {
-                        try {
-                            await hookService.updateHook(item.update.hook);
-                        } catch (error) {
-                            vscode.window.showErrorMessage(
-                                `Failed to update ${item.label}: ${error instanceof Error ? error.message : 'Unknown error'}`
-                            );
-                        }
-                    }
-                    treeProvider.refresh();
-                }
-            }
-        }).catch((error: unknown) => {
+        void performUpdateCheck(hookService, treeProvider).catch((error: unknown) => {
             console.error('Failed to check for hook updates on activation:', error);
         });
     }

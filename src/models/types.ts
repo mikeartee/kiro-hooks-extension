@@ -43,6 +43,8 @@ export interface KiroHookSchema {
     name: string;
     version: string;
     description?: string;
+    enabled?: boolean;
+    tags?: string[];
     when: HookWhen;
     then: HookThen;
 }

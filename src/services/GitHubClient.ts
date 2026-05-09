@@ -5,12 +5,21 @@ import * as https from 'https';
 import { GitHubContent, ErrorCode, ExtensionError } from '../models/types';
 
 // Type imports
-import type { IncomingMessage } from 'http';
+import type { IncomingMessage, ClientRequest, RequestOptions } from 'http';
 
 /**
  * Function type that asynchronously retrieves the current GitHub token
  */
 export type TokenProvider = () => Promise<string | undefined>;
+
+/**
+ * Signature matching https.get — injectable for testing
+ */
+export type HttpGetFn = (
+    url: string,
+    options: RequestOptions,
+    callback: (res: IncomingMessage) => void
+) => ClientRequest;
 
 /**
  * Client for interacting with the GitHub API
@@ -22,18 +31,41 @@ export class GitHubClient {
     private readonly maxRetries = 3;
     private readonly retryDelay = 1000;
 
+    private readonly httpGet: HttpGetFn;
+
     constructor(
         private readonly repository: string,
         private readonly branch: string = 'main',
-        private readonly getToken: TokenProvider
-    ) {}
+        private readonly getToken: TokenProvider,
+        httpGet?: HttpGetFn
+    ) {
+        // Default to the real https.get; tests can inject a fake
+        this.httpGet = httpGet ?? ((url, options, cb) => https.get(url, options, cb));
+    }
 
     /**
      * Fetch directory contents from the repository
      */
     async getRepositoryContents(path: string): Promise<GitHubContent[]> {
         const url = `${this.baseUrl}/repos/${this.repository}/contents/${path}?ref=${this.branch}`;
-        const response = await this.makeRequestWithRetry(url);
+        const response = await this.makeRequestWithRetry<unknown>(
+            url,
+            (statusCode, data, res) => {
+                if (statusCode === 200) {
+                    try {
+                        return JSON.parse(data) as unknown;
+                    } catch {
+                        throw new ExtensionError(
+                            'Failed to parse GitHub API response',
+                            ErrorCode.PARSE_ERROR,
+                            false
+                        );
+                    }
+                } else {
+                    throw this.handleHttpError(statusCode, data, res);
+                }
+            }
+        );
 
         if (!Array.isArray(response)) {
             throw new ExtensionError(
@@ -51,43 +83,31 @@ export class GitHubClient {
      */
     async getRawFileContent(path: string): Promise<string> {
         const url = `${this.rawBaseUrl}/${this.repository}/${this.branch}/${path}`;
-        return this.makeRawRequestWithRetry(url);
-    }
-
-    private async makeRequestWithRetry(url: string): Promise<unknown> {
-        let lastError: ExtensionError | null = null;
-
-        for (let attempt = 0; attempt < this.maxRetries; attempt++) {
-            try {
-                return await this.makeRequest(url);
-            } catch (error) {
-                if (error instanceof ExtensionError) {
-                    lastError = error;
-                    if (!error.recoverable) {
-                        throw error;
-                    }
-                    if (attempt < this.maxRetries - 1) {
-                        await this.delay(this.retryDelay * (attempt + 1));
-                    }
+        return this.makeRequestWithRetry<string>(
+            url,
+            (statusCode, data, res) => {
+                if (statusCode === 200) {
+                    return data;
                 } else {
-                    throw error;
+                    throw this.handleHttpError(statusCode, data, res);
                 }
             }
-        }
-
-        throw lastError ?? new ExtensionError(
-            'Request failed after maximum retries',
-            ErrorCode.NETWORK_ERROR,
-            false
         );
     }
 
-    private async makeRawRequestWithRetry(url: string): Promise<string> {
+    /**
+     * Unified request method with retry logic.
+     * The transform function handles response parsing and error throwing.
+     */
+    private async makeRequestWithRetry<T>(
+        url: string,
+        transform: (statusCode: number, data: string, res: IncomingMessage) => T
+    ): Promise<T> {
         let lastError: ExtensionError | null = null;
 
         for (let attempt = 0; attempt < this.maxRetries; attempt++) {
             try {
-                return await this.makeRawRequest(url);
+                return await this.executeRequest(url, transform);
             } catch (error) {
                 if (error instanceof ExtensionError) {
                     lastError = error;
@@ -114,7 +134,10 @@ export class GitHubClient {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    private async makeRequest(url: string): Promise<unknown> {
+    private async executeRequest<T>(
+        url: string,
+        transform: (statusCode: number, data: string, res: IncomingMessage) => T
+    ): Promise<T> {
         const token = await this.getToken();
 
         return new Promise((resolve, reject) => {
@@ -127,22 +150,14 @@ export class GitHubClient {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const req = https.get(url, { headers, timeout: this.timeout }, (res) => {
+            const req = this.httpGet(url, { headers, timeout: this.timeout }, (res) => {
                 let data = '';
                 res.on('data', (chunk) => { data += chunk; });
                 res.on('end', () => {
-                    if (res.statusCode === 200) {
-                        try {
-                            resolve(JSON.parse(data));
-                        } catch {
-                            reject(new ExtensionError(
-                                'Failed to parse GitHub API response',
-                                ErrorCode.PARSE_ERROR,
-                                false
-                            ));
-                        }
-                    } else {
-                        reject(this.handleHttpError(res.statusCode ?? 0, data, res));
+                    try {
+                        resolve(transform(res.statusCode ?? 0, data, res));
+                    } catch (err) {
+                        reject(err);
                     }
                 });
             });
@@ -158,50 +173,7 @@ export class GitHubClient {
 
             req.on('error', (error) => {
                 reject(new ExtensionError(
-                    `Network error: ${error.message}`,
-                    ErrorCode.NETWORK_ERROR,
-                    true
-                ));
-            });
-        });
-    }
-
-    private async makeRawRequest(url: string): Promise<string> {
-        const token = await this.getToken();
-
-        return new Promise((resolve, reject) => {
-            const headers: Record<string, string> = {
-                'User-Agent': 'VSCode-Kiro-Hooks-Browser'
-            };
-
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const req = https.get(url, { headers, timeout: this.timeout }, (res) => {
-                let data = '';
-                res.on('data', (chunk) => { data += chunk; });
-                res.on('end', () => {
-                    if (res.statusCode === 200) {
-                        resolve(data);
-                    } else {
-                        reject(this.handleHttpError(res.statusCode ?? 0, data, res));
-                    }
-                });
-            });
-
-            req.on('timeout', () => {
-                req.destroy();
-                reject(new ExtensionError(
-                    'Request to GitHub timed out',
-                    ErrorCode.NETWORK_ERROR,
-                    true
-                ));
-            });
-
-            req.on('error', (error) => {
-                reject(new ExtensionError(
-                    `Network error: ${error.message}`,
+                    `Network error: ${(error as Error).message}`,
                     ErrorCode.NETWORK_ERROR,
                     true
                 ));
