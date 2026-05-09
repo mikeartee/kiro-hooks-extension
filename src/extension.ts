@@ -31,7 +31,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const hookContentProvider = new HookContentProvider(hookService);
     context.subscriptions.push(
-        vscode.workspace.registerTextDocumentContentProvider(HOOK_SCHEME, hookContentProvider)
+        vscode.workspace.registerTextDocumentContentProvider(HOOK_SCHEME, hookContentProvider),
+        hookContentProvider
     );
 
     const treeView = vscode.window.createTreeView('kiroHooksView', {
@@ -61,9 +62,15 @@ export function activate(context: vscode.ExtensionContext): void {
                 const newBranch = newConfig.get<string>('branch', 'main');
                 const newClient = new GitHubClient(newRepo, newBranch, () => tokenManager.getToken());
                 hookService.setClient(newClient);
-                void hookService.clearCache();
-                treeProvider.refresh();
-                void vscode.window.showInformationMessage('Settings updated — refreshing hooks...');
+                // Await clearCache before refreshing so the tree fetches fresh
+                // data from the new repository rather than serving stale cache.
+                void hookService.clearCache().then(() => {
+                    treeProvider.refresh();
+                    void vscode.window.showInformationMessage('Settings updated — refreshing hooks...');
+                }).catch((err: unknown) => {
+                    console.error('Failed to clear cache after config change:', err);
+                    treeProvider.refresh();
+                });
             }
         })
     );

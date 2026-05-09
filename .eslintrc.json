@@ -25,15 +25,23 @@
       {
         "selector": "classProperty",
         "modifiers": ["private", "static", "readonly"],
-        "format": ["UPPER_CASE", "camelCase"]
+        "format": ["UPPER_CASE", "camelCase"],
+        "leadingUnderscore": "allow"
       },
       {
         "selector": "classProperty",
         "modifiers": ["private", "readonly"],
-        "format": ["UPPER_CASE", "camelCase"]
+        "format": ["UPPER_CASE", "camelCase"],
+        "leadingUnderscore": "allow"
       },
       {
         "selector": "classProperty",
+        "modifiers": ["private"],
+        "format": ["camelCase"],
+        "leadingUnderscore": "allow"
+      },
+      {
+        "selector": "classMethod",
         "modifiers": ["private"],
         "format": ["camelCase"],
         "leadingUnderscore": "allow"

@@ -357,4 +357,27 @@ suite('GitHubClient Unit Tests', () => {
         });
     });
 
+    // -----------------------------------------------------------------------
+    // Test 12 — getRepositoryContents with non-array 200 body throws PARSE_ERROR
+    // -----------------------------------------------------------------------
+    suite('Test 12 — Non-array 200 body throws PARSE_ERROR', () => {
+        test('getRepositoryContents throws PARSE_ERROR when 200 body is not an array', async () => {
+            // GitHub API returns a single object (e.g. a file, not a directory)
+            const { httpGet } = makeFakeGet(200, JSON.stringify({ name: 'file.json', type: 'file' }));
+            const client = makeClient(httpGet, 'token');
+
+            let thrown: unknown;
+            try {
+                await client.getRepositoryContents('some/path');
+            } catch (err) {
+                thrown = err;
+            }
+
+            assert.ok(thrown instanceof ExtensionError, 'Should throw ExtensionError');
+            assert.strictEqual((thrown as ExtensionError).code, ErrorCode.PARSE_ERROR);
+            assert.strictEqual((thrown as ExtensionError).recoverable, false,
+                'PARSE_ERROR should be non-recoverable');
+        });
+    });
+
 });
