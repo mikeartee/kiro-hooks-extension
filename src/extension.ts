@@ -7,6 +7,7 @@ import { CacheManager } from './services/CacheManager';
 import { HookService } from './services/HookService';
 import { TokenManager } from './services/TokenManager';
 import { HooksTreeProvider } from './providers/HooksTreeProvider';
+import { HookContentProvider, HOOK_SCHEME } from './providers/HookContentProvider';
 import { registerCommands } from './commands';
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -21,6 +22,11 @@ export function activate(context: vscode.ExtensionContext): void {
     const cacheManager = new CacheManager(context.globalState);
     const hookService = new HookService(githubClient, cacheManager);
     const treeProvider = new HooksTreeProvider(hookService);
+
+    const hookContentProvider = new HookContentProvider(hookService);
+    context.subscriptions.push(
+        vscode.workspace.registerTextDocumentContentProvider(HOOK_SCHEME, hookContentProvider)
+    );
 
     const treeView = vscode.window.createTreeView('kiroHooksView', {
         treeDataProvider: treeProvider,

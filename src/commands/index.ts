@@ -6,6 +6,7 @@ import { HookService } from '../services/HookService';
 import { HooksTreeProvider } from '../providers/HooksTreeProvider';
 import { TokenManager } from '../services/TokenManager';
 import { HookMetadata, InstalledHook, ExtensionError } from '../models/types';
+import { HOOK_SCHEME } from '../providers/HookContentProvider';
 
 /**
  * Register all command handlers for the Kiro Hooks extension
@@ -81,7 +82,7 @@ async function handleRefresh(
 }
 
 async function handlePreview(
-    hookService: HookService,
+    _hookService: HookService,
     item: unknown
 ): Promise<void> {
     try {
@@ -91,17 +92,14 @@ async function handlePreview(
             return;
         }
 
-        const content = await vscode.window.withProgress(
+        await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Notification, title: `Loading ${hook.name}...`, cancellable: false },
-            async () => hookService.fetchHookContent(hook.path)
+            async () => {
+                const uri = vscode.Uri.parse(`${HOOK_SCHEME}:/${hook.path}`);
+                const doc = await vscode.workspace.openTextDocument(uri);
+                await vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
+            }
         );
-
-        const uri = vscode.Uri.parse(`untitled:${hook.name}`);
-        const doc = await vscode.workspace.openTextDocument(uri);
-        const edit = new vscode.WorkspaceEdit();
-        edit.insert(uri, new vscode.Position(0, 0), content);
-        await vscode.workspace.applyEdit(edit);
-        await vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
     } catch (error) {
         vscode.window.showErrorMessage(
             `Failed to preview hook: ${error instanceof Error ? error.message : 'Unknown error'}`
