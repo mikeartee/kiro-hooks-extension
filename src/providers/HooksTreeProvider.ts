@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 
 // Internal modules
 import { HookService } from '../services/HookService';
-import { HookMetadata, InstalledHook } from '../models/types';
+import { HookMetadata, InstalledHook, CategoryDefinition } from '../models/types';
 
 /**
  * Union type for all tree node types
@@ -39,10 +39,13 @@ export class HooksTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
     private remoteHooks: HookMetadata[] = [];
     private installedHooks: InstalledHook[] = [];
+    private categories: CategoryDefinition[] = [];
+    private fetchPromise: Promise<void> | null = null;
 
     constructor(private readonly hookService: HookService) {}
 
     refresh(): void {
+        this.fetchPromise = null; // clear so next expand re-fetches
         this._onDidChangeTreeData.fire();
     }
 
@@ -69,20 +72,32 @@ export class HooksTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         try {
             await this.fetchData();
 
-            const categoryMap = new Map<string, { label: string; description: string }>();
-            for (const hook of this.remoteHooks) {
-                if (!categoryMap.has(hook.category)) {
-                    categoryMap.set(hook.category, {
-                        label: this.formatCategoryLabel(hook.category),
-                        description: ''
+            const categories: TreeNode[] = [];
+            for (const cat of this.categories) {
+                const hooksInCategory = this.remoteHooks.filter(h => h.category === cat.id);
+                if (hooksInCategory.length > 0) {
+                    categories.push({
+                        type: 'category',
+                        id: cat.id,
+                        label: cat.label,
+                        description: cat.description
                     });
                 }
             }
 
-            const categories: TreeNode[] = [];
-            for (const [id, info] of categoryMap) {
-                const hooksInCategory = this.remoteHooks.filter(h => h.category === id);
-                if (hooksInCategory.length > 0) {
+            // Fallback: if categories is empty (e.g. cache hit before categories loaded),
+            // derive from hooks as before
+            if (categories.length === 0 && this.remoteHooks.length > 0) {
+                const categoryMap = new Map<string, { label: string; description: string }>();
+                for (const hook of this.remoteHooks) {
+                    if (!categoryMap.has(hook.category)) {
+                        categoryMap.set(hook.category, {
+                            label: hook.category.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+                            description: ''
+                        });
+                    }
+                }
+                for (const [id, info] of categoryMap) {
                     categories.push({ type: 'category', id, ...info });
                 }
             }
@@ -95,13 +110,24 @@ export class HooksTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         }
     }
 
-    private async fetchData(): Promise<void> {
-        const [remote, installed] = await Promise.all([
+    private fetchData(): Promise<void> {
+        if (!this.fetchPromise) {
+            this.fetchPromise = this._doFetch().finally(() => {
+                this.fetchPromise = null;
+            });
+        }
+        return this.fetchPromise;
+    }
+
+    private async _doFetch(): Promise<void> {
+        const [remote, installed, categories] = await Promise.all([
             this.hookService.fetchHookList(),
-            this.hookService.getInstalledHooks()
+            this.hookService.getInstalledHooks(),
+            Promise.resolve(this.hookService.getCategories())
         ]);
         this.remoteHooks = remote;
         this.installedHooks = installed;
+        this.categories = categories;
     }
 
     private getHooksForCategory(categoryId: string): TreeNode[] {
@@ -124,13 +150,6 @@ export class HooksTreeProvider implements vscode.TreeDataProvider<TreeNode> {
             }
             return 0;
         });
-    }
-
-    private formatCategoryLabel(categoryId: string): string {
-        return categoryId
-            .split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
     }
 
     private createCategoryTreeItem(node: CategoryNode): vscode.TreeItem {
