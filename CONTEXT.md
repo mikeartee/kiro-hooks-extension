@@ -47,6 +47,20 @@ models/
   types.ts            — shared types and enums
 ```
 
+## Recommendation system vocabulary
+
+**Workspace context** — A snapshot of the current workspace: detected languages, frameworks, dependencies, file patterns, project type, and already-installed hooks. Built by `WorkspaceAnalyzer` and cached by `WorkspaceAnalysisCache`.
+
+**Scored hook** — A `HookMetadata` paired with a numeric relevance score and a list of match reasons explaining why it was recommended.
+
+**Match reason** — A typed explanation of why a hook scored points: `framework`, `dependency`, `file-pattern`, `language`, or `project-type`.
+
+**HookMatcher** — Scores a hook against a workspace context using weighted signals: tag-to-framework match (30pts), tag-to-dependency match (20pts), tag-to-file-pattern match (15pts), tag-to-language match (10pts), eventType relevance (10pts).
+
+**RecommendationService** — Orchestrates workspace analysis, hook fetching, scoring, and filtering. Returns a ranked list of scored hooks above a minimum score threshold.
+
+**WorkspaceAnalysisCache** — TTL-based in-memory cache for workspace analysis results. Prevents re-scanning the filesystem on every recommendation request within the same session.
+
 ## Key invariants
 
 - Hook matching between remote and installed is always by **path** (not name). Two hooks in different categories can share the same filename.
