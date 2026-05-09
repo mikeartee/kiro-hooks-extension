@@ -5,8 +5,10 @@ import * as vscode from 'vscode';
 import { HookService } from '../services/HookService';
 import { HooksTreeProvider } from '../providers/HooksTreeProvider';
 import { TokenManager } from '../services/TokenManager';
+import { RecommendationService } from '../services/RecommendationService';
 import { HookMetadata, InstalledHook, ExtensionError } from '../models/types';
 import { HOOK_SCHEME } from '../providers/HookContentProvider';
+import { recommendHooks } from './recommendHooks';
 
 /**
  * Register all command handlers for the Kiro Hooks extension
@@ -15,7 +17,8 @@ export function registerCommands(
     context: vscode.ExtensionContext,
     hookService: HookService,
     treeProvider: HooksTreeProvider,
-    tokenManager: TokenManager
+    tokenManager: TokenManager,
+    recommendationService?: RecommendationService
 ): void {
     context.subscriptions.push(
         vscode.commands.registerCommand('kiroHooks.refresh', async () => {
@@ -58,6 +61,14 @@ export function registerCommands(
             await handleToggle(hookService, treeProvider, item);
         })
     );
+
+    if (recommendationService) {
+        context.subscriptions.push(
+            vscode.commands.registerCommand('kiroHooks.recommend', async () => {
+                await recommendHooks(recommendationService!, hookService, treeProvider);
+            })
+        );
+    }
 }
 
 async function handleRefresh(
