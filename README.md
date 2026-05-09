@@ -1,6 +1,6 @@
 # Kiro Hooks Browser
 
-Browse, preview, and install community Kiro agent hooks directly from VS Code.
+Browse, preview, install, and get personalised recommendations for community Kiro agent hooks — directly from VS Code.
 
 ## What are Kiro Hooks?
 
@@ -8,18 +8,22 @@ Kiro hooks are automation rules that trigger agent actions based on IDE events �
 
 Examples of what hooks can do:
 
-- Run linting when you save a TypeScript file
+- Run linting when you save a TypeScript or Python file
 - Sync `.env.example` when you edit `.env`
 - Update barrel exports when you create a new source file
 - Review staged changes before a commit
+- Scan for hardcoded secrets on every file edit
+- Run tests automatically after a spec task completes
 
 ## Features
 
-- Browse hooks organized by category (Code Quality, Testing, Workflow, Security, Maintenance)
-- Single-click install and uninstall with a green indicator showing what's active
-- Preview hook JSON before installing
-- Automatic update detection with one-click updates
-- GitHub token support for higher API rate limits
+- **Browse** hooks organised by category (Code Quality, Testing, Documentation, Security, Workflow, Maintenance)
+- **Get Recommendations** — click ✨ to get a ranked list of hooks relevant to your project based on your workspace's languages, frameworks, and dependencies
+- **Single-click install and uninstall** with colour-coded status indicators (green = installed, orange = update available)
+- **Preview** hook JSON before installing
+- **Automatic update detection** with one-click updates
+- **GitHub token support** for higher API rate limits
+- **Config hot-reload** — changing the repository or branch in settings takes effect immediately, no restart needed
 
 ## Getting Started
 
@@ -29,6 +33,14 @@ Examples of what hooks can do:
 4. Right-click a hook for preview and update options
 
 Installed hooks are written to `.kiro/hooks/` in your workspace and are immediately active.
+
+## Get Recommendations
+
+Click the **✨ sparkle button** in the Hooks Browser title bar (or run **Kiro Hooks: Get Recommendations** from the Command Palette) to get a personalised list of hooks for your project.
+
+The extension analyses your workspace — detecting languages, frameworks, dependencies, and project structure — and scores each hook for relevance. Select one or more from the list and press Enter to install them all at once.
+
+Works best when your workspace has a `package.json` or `tsconfig.json`. Projects without either will still work but may return fewer results.
 
 ## GitHub Token (Optional)
 
@@ -54,4 +66,3 @@ The hook library lives at [github.com/mikeartee/kiro-hooks-docs](https://github.
 ## License
 
 MIT
-
