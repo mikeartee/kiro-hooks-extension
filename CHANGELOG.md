@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0]
+
+### Added
+- "Get Recommendations" button (✨) in the tree view title bar and command palette
+- `WorkspaceAnalyzer` — scans `package.json`, file structure, and `tsconfig.json` to detect languages, frameworks, dependencies, and project type
+- `WorkspaceAnalysisCache` — 5-minute TTL cache prevents redundant workspace scans
+- `HookMatcher` — scores hooks against workspace context using weighted signals (framework 30pts, dependency 20pts, language 10pts, event type 10pts)
+- `RecommendationService` — orchestrates analysis, scoring, filtering, and ranking
+- Multi-select QuickPick UI for bulk hook installation from recommendations
+- 22 new unit tests (18 for HookMatcher, 4 for WorkspaceAnalysisCache)
+- All 14 hooks in `kiro-hooks-docs` tagged with meaningful values for accurate scoring
+
 ## [0.3.0]
 
 ### Added
