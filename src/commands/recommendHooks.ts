@@ -95,20 +95,23 @@ export async function recommendHooks(
             cancellable: false
         },
         async () => {
+            let installedCount = 0;
             for (const item of selected) {
                 try {
                     await hookService.installHook(item.scoredHook.hook);
+                    installedCount++;
                 } catch (error) {
                     vscode.window.showErrorMessage(
                         `Failed to install ${item.label}: ${error instanceof Error ? error.message : 'Unknown error'}`
                     );
                 }
             }
+            treeProvider.refresh();
+            if (installedCount > 0) {
+                vscode.window.showInformationMessage(
+                    `Installed ${installedCount} hook${installedCount === 1 ? '' : 's'}`
+                );
+            }
         }
-    );
-
-    treeProvider.refresh();
-    vscode.window.showInformationMessage(
-        `Installed ${selected.length} hook${selected.length === 1 ? '' : 's'}`
     );
 }

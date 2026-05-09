@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
         tokenManager.onTokenChange(() => treeProvider.refresh())
     );
 
-    registerCommands(context, hookService, treeProvider, tokenManager, recommendationService);
+    registerCommands(context, hookService, treeProvider, tokenManager, recommendationService, workspaceAnalysisCache);
 
     context.subscriptions.push({
         dispose: () => tokenManager.dispose()

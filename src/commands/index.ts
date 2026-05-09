@@ -18,11 +18,12 @@ export function registerCommands(
     hookService: HookService,
     treeProvider: HooksTreeProvider,
     tokenManager: TokenManager,
-    recommendationService?: RecommendationService
+    recommendationService?: RecommendationService,
+    workspaceAnalysisCache?: import('../services/WorkspaceAnalysisCache').WorkspaceAnalysisCache
 ): void {
     context.subscriptions.push(
         vscode.commands.registerCommand('kiroHooks.refresh', async () => {
-            await handleRefresh(hookService, treeProvider);
+            await handleRefresh(hookService, treeProvider, workspaceAnalysisCache);
         }),
 
         vscode.commands.registerCommand('kiroHooks.preview', async (item: unknown) => {
@@ -73,13 +74,15 @@ export function registerCommands(
 
 async function handleRefresh(
     hookService: HookService,
-    treeProvider: HooksTreeProvider
+    treeProvider: HooksTreeProvider,
+    workspaceAnalysisCache?: import('../services/WorkspaceAnalysisCache').WorkspaceAnalysisCache
 ): Promise<void> {
     await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'Refreshing hooks...', cancellable: false },
         async () => {
             try {
                 await hookService.clearCache();
+                workspaceAnalysisCache?.invalidate();
                 await hookService.fetchHookList();
                 treeProvider.refresh();
                 vscode.window.showInformationMessage('Hooks refreshed successfully');

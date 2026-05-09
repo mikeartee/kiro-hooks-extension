@@ -150,10 +150,14 @@ export class HookMatcher {
 
         for (const tag of hook.tags) {
             const normalizedTag = tag.toLowerCase();
+            // Use exact match or scoped-package prefix match only.
+            // Partial substring matching (e.g. "npm" matching "npmlog") causes false positives.
             const hasMatch = depNames.some(depName =>
                 depName === normalizedTag ||
-                depName.includes(normalizedTag) ||
-                normalizedTag.includes(depName)
+                depName === `@${normalizedTag}` ||
+                depName.startsWith(`${normalizedTag}/`) ||
+                depName.startsWith(`${normalizedTag}-`) ||
+                depName.startsWith(`@${normalizedTag}/`)
             );
 
             if (hasMatch) {

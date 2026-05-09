@@ -128,6 +128,45 @@ suite('HookMatcher', () => {
         assert.strictEqual(result.score, 40, 'Two dependency matches should score 40');
     });
 
+    test('dependency match: tag "npm" does NOT match dependency "npmlog" (no false positives)', () => {
+        const hook = makeHook({ tags: ['npm'] });
+        const context = makeContext({
+            dependencies: [
+                { name: 'npmlog', version: '6.0.0', isDev: false, category: DependencyCategory.UTILITY }
+            ]
+        });
+
+        const result = matcher.scoreHook(hook, context);
+
+        assert.strictEqual(result.score, 0, 'Tag "npm" should not match dependency "npmlog"');
+    });
+
+    test('dependency match: tag "es" does NOT match dependency "eslint" (no false positives)', () => {
+        const hook = makeHook({ tags: ['es'] });
+        const context = makeContext({
+            dependencies: [
+                { name: 'eslint', version: '8.0.0', isDev: true, category: DependencyCategory.BUILD }
+            ]
+        });
+
+        const result = matcher.scoreHook(hook, context);
+
+        assert.strictEqual(result.score, 0, 'Tag "es" should not match dependency "eslint"');
+    });
+
+    test('dependency match: tag "eslint" DOES match scoped package "@eslint/js"', () => {
+        const hook = makeHook({ tags: ['eslint'] });
+        const context = makeContext({
+            dependencies: [
+                { name: '@eslint/js', version: '8.0.0', isDev: true, category: DependencyCategory.BUILD }
+            ]
+        });
+
+        const result = matcher.scoreHook(hook, context);
+
+        assert.strictEqual(result.score, 20, 'Tag "eslint" should match scoped package "@eslint/js"');
+    });
+
     // -----------------------------------------------------------------------
     // Language scoring
     // -----------------------------------------------------------------------
