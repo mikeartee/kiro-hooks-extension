@@ -183,6 +183,10 @@ export class HooksTreeProvider implements vscode.TreeDataProvider<TreeNode> {
             lines.push(`[UPDATE AVAILABLE] ${node.installed?.version ?? 'unknown'} → ${node.metadata.version}`);
         }
 
+        if (node.metadata.tags && node.metadata.tags.length > 0) {
+            lines.push(`Tags: ${node.metadata.tags.join(', ')}`);
+        }
+
         return lines.join('\n');
     }
 

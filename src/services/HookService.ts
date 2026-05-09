@@ -107,7 +107,7 @@ export class HookService {
                             downloadUrl: item.download_url,
                             eventType: schema.when.type as HookEventType,
                             actionType: schema.then.type as HookActionType,
-                            tags: []
+                            tags: schema.tags ?? []
                         });
                     } catch (error) {
                         console.error(`Failed to parse hook ${item.path}:`, error);
